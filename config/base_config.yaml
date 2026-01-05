@@ -1,0 +1,20 @@
+datasets:
+  mnist:
+    urls:
+      images: "http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz"
+      labels: http://yann.lecun.com/exdb/mnist/train-labels-idx3-ubyte.gz
+    paths:
+      raw_dir: "data/raw_mnist"
+      processed_dir: "data/processed/mnist"
+      marker_file: "mnist_ready.success"
+    params:
+      input_shape: [784]
+      output_shape: [10]
+  cancer:
+    paths:
+      raw_dir: "data/raw_cancer"
+      processed_dir: "data/processed/cancer"
+      marker_file: "data/cancer_ready.success"
+    input_shape: [30]
+    output_shape: [1]
+      
