@@ -1,27 +1,34 @@
 experiment: breast_cancer_mlp
+  
 
-data:
+dataset:
+  loader: 
+    name: numpy
+    params: {"path":data/data.npz}
   name: breast_cancer
-  split:
-    test_size: 0.2
-    shuffle: true
   preprocessing:
+    split:
+      train: 0.8
+      val: 0.1
+      test: 0.1
+    shuffle: true
     normalize: true
 
 model:
   type: sequential
   input_dim: 30
   architecture:
-    - [Dense, 64, relu]
+    - [batchnorm, 30]
+    - [30, 64, relu]
+    - [batchnorm, 64]
+    - [64, 32, relu]
     - [Dropout, 0.2]
-    - [Dense, 32, relu]
-    - [Dense, 1, sigmoid]
+    - [32, 1, sigmoid]
 
 training:
   batch_size: 16
-  epochs: 20
+  epochs: 50
   metric: accuracy
-
   optimizer:
     name: adam
     lr: 0.001

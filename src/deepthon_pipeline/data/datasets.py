@@ -16,12 +16,12 @@ def load_dataset_from_config(cfg) -> Tuple[Any, Any, Any]:
     X, y = DATASET_LOADERS[loader_name](**loader_args)
 
     # ---- preprocessing ----
-    transforms = cfg.preprocessing.transforms or []
+    transforms = ds_cfg.preprocessing.transforms or []
     pipeline = build_transform_pipeline(transforms)
     X = pipeline(X)
 
     # ---- split ----
-    split_cfg = cfg.preprocessing.split
+    split_cfg = ds_cfg.preprocessing.split
 
     train, val, test = split_dataset(
         X=X,
@@ -29,8 +29,8 @@ def load_dataset_from_config(cfg) -> Tuple[Any, Any, Any]:
         train_ratio=split_cfg.train,
         val_ratio=split_cfg.get("val", None),
         test_ratio=split_cfg.test,
-        shuffle=cfg.preprocessing.shuffle,
-        seed=cfg.experiment.seed,
+        shuffle=ds_cfg.preprocessing.shuffle,
+        seed=ds_cfg.seed,
     )
 
     return train, val, test

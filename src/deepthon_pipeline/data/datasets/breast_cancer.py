@@ -5,5 +5,5 @@ from ..registry import register_dataset
 
 @register_dataset("breast_cancer")
 def build_breast_cancer(cfg):
-    ds = load_breast_cancer()
-    return BaseDataset(ds.data, ds.target)
+    X,y = load_breast_cancer(return_X_y=True)
+    return BaseDataset(X, y)

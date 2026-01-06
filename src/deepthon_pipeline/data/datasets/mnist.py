@@ -27,3 +27,5 @@ def build_mnist(cfg):
     y = data["y_train"]
 
     return BaseDataset(X, y)
+
+_download_mnist()

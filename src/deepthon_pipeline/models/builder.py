@@ -1,4 +1,4 @@
-from deepthon.src.deepthon.nn.layers import Sequential, Layer, Dropout, BatchNorm, get_activation
+from deepthon.nn.layers import Sequential, Layer, Dropout, BatchNorm, get_activation
 from .registry import register_model
 
 # ---------------- Block mapper registery -----------------
@@ -47,7 +47,7 @@ def map_block(token):
             raise ValueError(f"Unknown architecture block: {token}")
         return BLOCK_MAPPER[key](token)
     
-    return BLOCK_MAPPER['linear'](token)
+    return BLOCK_MAPPER['layer'](token)
 
 # -------- build sequential model --------
 
