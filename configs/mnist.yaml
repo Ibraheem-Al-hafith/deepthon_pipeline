@@ -1,0 +1,30 @@
+experiment:
+  name: mnist_mlp
+  output_dir: runs/mnist
+
+data:
+  name: mnist
+  split:
+    test_size: 0.2
+    shuffle: true
+
+model:
+  name: sequential
+  architecture:
+    - [784, 256, "relu"]
+    - ["batchnorm"]
+    - [256, 128, "relu"]
+    - ["dropout", 0.5]
+    - [128, 10, "softmax"]
+
+training:
+  batch_size: 64
+  epochs: 10
+  loss: cross_entropy
+  optimizer:
+    type: sgd
+    lr: 0.01
+
+checkpoint:
+  resume: true
+  path: runs/mnist/last.ckpt

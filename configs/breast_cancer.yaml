@@ -1,0 +1,27 @@
+experiment: breast_cancer_mlp
+
+data:
+  name: breast_cancer
+  split:
+    test_size: 0.2
+    shuffle: true
+  preprocessing:
+    normalize: true
+
+model:
+  type: sequential
+  input_dim: 30
+  architecture:
+    - [Dense, 64, relu]
+    - [Dropout, 0.2]
+    - [Dense, 32, relu]
+    - [Dense, 1, sigmoid]
+
+training:
+  batch_size: 16
+  epochs: 20
+  metric: accuracy
+
+  optimizer:
+    name: adam
+    lr: 0.001

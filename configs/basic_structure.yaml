@@ -1,0 +1,71 @@
+experiment:
+  name: mnist_mlp_experiment
+  seed: 42
+  output_dir: runs/mnist
+
+dataset:
+  name: mnist
+  root: data/mnist
+  download: true
+
+preprocessing:
+  transforms:
+    - normalize
+    - flatten
+  split:
+    train: 0.8
+    val: 0.1
+    test: 0.1
+  shuffle: true
+
+model:
+  name: mlp
+  backend: deepthon
+  params:
+    input_dim: 784
+    hidden_sizes: [256, 128]
+    output_dim: 10
+    activation: relu
+
+optimizer:
+  name: sgd
+  params:
+    lr: 0.01
+    momentum: 0.9
+    weight_decay: 0.0
+
+scheduler:
+  enabled: true
+  name: step_lr
+  params:
+    step_size: 5
+    gamma: 0.5
+
+training:
+  epochs: 20
+  batch_size: 64
+  num_workers: 0
+  device: cpu
+  gradient_clip: null
+  resume_from: null   # checkpoint path or null
+
+checkpointing:
+  enabled: true
+  dir: runs/mnist/checkpoints
+  save_every: 1
+  keep_last: 3
+  monitor: val_loss
+  mode: min   # or max
+
+evaluation:
+  metrics:
+    - accuracy
+    - f1_macro
+  confusion_matrix: true
+  report: true
+
+logging:
+  level: INFO
+  to_file: true
+  log_dir: runs/mnist/logs
+  name: mnist
