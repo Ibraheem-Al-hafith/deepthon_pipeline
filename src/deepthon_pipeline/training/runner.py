@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-from ..data.datasets import load_dataset_from_config
+from ..data.loader import build_dataset
 from ..models.builder import build_model_from_config
 from ..models.registry import build_model
 from ..training.checkpoints import save_checkpoint
@@ -10,10 +10,13 @@ from ..utils.logging import get_logger
 from ..models.optimizer_builder import build_optimizer  # your optimizer factory
 
 from deepthon.pipeline.trainer import Trainer
-from deepthon.nn.losses import BCE
+from deepthon.nn.losses import BCE, CrossEntropy
 
 logger = get_logger(__name__)
 
+class DataSet:
+    X: None
+    y: None
 
 class ExperimentRunner:
     """
@@ -21,7 +24,7 @@ class ExperimentRunner:
         dataset → model → optimizer → trainer → metrics → checkpoint
     """
 
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg):
         self.cfg = cfg
 
         # create experiment directory
@@ -31,6 +34,7 @@ class ExperimentRunner:
         self.exp_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Experiment directory: {self.exp_dir}")
+        self.train_data, self.val_data = DataSet, DataSet
 
     # ------------------------------------------------------------------ #
     # Build components
@@ -38,7 +42,14 @@ class ExperimentRunner:
 
     def build_data(self):
         logger.info("Building dataset + preprocessing + splits...")
-        self.train_data, self.val_data, self.test_data = load_dataset_from_config(self.cfg)
+        data_dict = build_dataset(self.cfg.datasets.mnist)
+        logger.info(data_dict.keys())
+        if "train_x.npy" in data_dict.keys():
+            self.train_data.X = data_dict["train_x.npy"]
+            self.train_data.y = data_dict["train_y.npy"]
+            self.val_data.X = data_dict["test_x.npy"]
+            self.val_data.y = data_dict["test_y.npy"]
+            logger.info("successfully build the dataset")
 
     def build_model(self):
         logger.info("Building model...")
@@ -57,7 +68,7 @@ class ExperimentRunner:
         self.trainer = Trainer(
             model=self.model,
             optimizer=self.optimizer,
-            loss_func=BCE(from_logits=False),    # deepthon provides this
+            loss_func=CrossEntropy(from_logits=True),    # deepthon provides this
             batch_size=tcfg["batch_size"],
             early_stopping=tcfg.get("early_stopping", False),
             patience=tcfg.get("patience", 5),
@@ -78,14 +89,17 @@ class ExperimentRunner:
 
         X_train, y_train = self.train_data.X,self.train_data.y
         X_val, y_val = self.val_data.X, self.val_data.y
-
+        logger.info(
+            f"{X_train.shape},{y_train.shape}"
+            f"{X_val.shape}, {y_val.shape}"
+        )
         epochs = self.cfg["training"]["epochs"]
-
+        
         self.trainer.train(
             X_train=X_train,
-            y_train=y_train.reshape(-1,1),
+            y_train=y_train.reshape(-1,10),
             X_val=X_val,
-            y_val=y_val.reshape(-1,1),
+            y_val=y_val.reshape(-1,10),
             epochs=epochs,
         )
 

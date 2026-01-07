@@ -1,30 +1,39 @@
-experiment:
-  name: mnist_mlp
-  output_dir: runs/mnist
+datasets:
+  mnist:
+    name: mnist
+    urls:
+      train_images: https://raw.githubusercontent.com/fgnt/mnist/master/train-images-idx3-ubyte.gz
+      train_labels: https://raw.githubusercontent.com/fgnt/mnist/master/train-labels-idx1-ubyte.gz
+      test_images: https://raw.githubusercontent.com/fgnt/mnist/master/t10k-images-idx3-ubyte.gz
+      test_labels: https://raw.githubusercontent.com/fgnt/mnist/master/t10k-labels-idx1-ubyte.gz
 
-data:
-  name: mnist
-  split:
-    test_size: 0.2
-    shuffle: true
+    paths:
+      raw_dir: "data/raw_mnist"
+      processed_dir: "data/processed/mnist"
+      marker_file: "mnist_ready.success"
+  cancer:
+    paths:
+      processed_dir: "data/processed/cancer"
+      marker_file: "cancer_ready.success"      
+  turbines:
+    paths:
+      processed_dir: "data/processed/turbines"
+      marker_file: "cancer_ready.success"
 
 model:
-  name: sequential
+  type: sequential
   architecture:
-    - [784, 256, "relu"]
-    - ["batchnorm"]
-    - [256, 128, "relu"]
-    - ["dropout", 0.5]
-    - [128, 10, "softmax"]
+    - [batchnorm, 784]
+    - [784, 256, relu]
+    - [batchnorm, 256]
+    - [256, 128, relu]
+    - [Dropout, 0.2]
+    - [128, 10, linear]
 
 training:
-  batch_size: 64
-  epochs: 10
-  loss: cross_entropy
+  batch_size: 16
+  epochs: 50
+  metric: accuracy
   optimizer:
-    type: sgd
-    lr: 0.01
-
-checkpoint:
-  resume: true
-  path: runs/mnist/last.ckpt
+    name: adamw
+    lr: 0.001

@@ -1,4 +1,4 @@
-from deepthon.nn.optimizers import SGD, Adam
+from deepthon.nn.optimizers import SGD, Adam, AdamW
 
 def build_optimizer(ocfg):
 
@@ -7,5 +7,8 @@ def build_optimizer(ocfg):
 
     if ocfg.name.lower() == "adam":
         return Adam(lr=ocfg.lr)
+    
+    if ocfg.name.lower() == "adamw":
+        return AdamW(lr=ocfg.lr)
 
     raise ValueError("Unsupported optimizer")
