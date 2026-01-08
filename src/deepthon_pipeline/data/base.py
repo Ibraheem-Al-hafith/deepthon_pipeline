@@ -1,231 +1,233 @@
 import numpy as np
-from ..utils.logging import get_logger
+import gzip
 import requests
+import kagglehub
 from pathlib import Path
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Optional, List, Tuple
+from kagglehub import KaggleDatasetAdapter
 from sklearn.datasets import load_breast_cancer
 from deepthon.utils.split import train_test_split
-from .registry import register_dataset
 
-import kagglehub
-from kagglehub import KaggleDatasetAdapter
+from ..utils.logging import get_logger
+from .registry import register_dataset
 
 logger = get_logger(__name__)
 
+# --- Structured Data Containers ---
+
+@dataclass
+class DataSplit:
+    """Container for a single split (e.g. Train, Val, or Test)."""
+    x: np.ndarray
+    y: np.ndarray
+
+    @property
+    def shape(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        return self.x.shape, self.y.shape
+
+@dataclass
+class DataModule:
+    """Container for the entire dataset lifecycle."""
+    train: DataSplit
+    val: DataSplit
+    test: Optional[DataSplit] = None
+
+# --- Base Abstract Loader ---
+
+# data/base.py
+
 class BaseLoader(ABC):
-    """
-    Base Loader class that defines the rules (methods) that every loader
-    must follow but doesn't implement the specific details for a
-    particular dataset.
-    """
     def __init__(self, ds_cfg) -> None:
-        """
-        ds_cfg : the dataset configuration to be load.
-        """
         self.ds_cfg = ds_cfg
         self.processed_dir = Path(ds_cfg.paths.processed_dir)
         self.marker_path = self.processed_dir / ds_cfg.paths.marker_file
-        self.datasets_paths = []
-    
-    def is_processed(self) -> bool:
-        """Helper function to check if the data is already processed"""
-        return self.marker_path.exists()
 
-    @abstractmethod
-    def load(self):
-        """Each specific loader must implement its own loading logic"""
-        pass
-    
+    def get_data(self) -> DataModule:
+        if not self.marker_path.exists():
+            logger.info(f"Processing raw data for {self.__class__.__name__}...")
+            data_module = self.process()
+            # Save all 3 potential splits
+            self._save_to_disk(data_module)
+            self.marker_path.touch()
+            return data_module
+        
+        logger.info(f"Loading cached dataset from {self.processed_dir}")
+        return self._load_from_disk()
+
+    def _save_to_disk(self, dm: DataModule) -> None:
+        """Saves all available splits using a clear naming convention."""
+        self.processed_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Helper to save a split if it exists
+        def save_split(split, prefix):
+            if split:
+                np.save(self.processed_dir / f"{prefix}_x.npy", split.x)
+                np.save(self.processed_dir / f"{prefix}_y.npy", split.y)
+
+        save_split(dm.train, "train")
+        save_split(dm.val, "val")
+        save_split(dm.test, "test")
+
+    def _load_from_disk(self) -> DataModule:
+        """Loads splits from disk, reconstructs DataModule with optional test set."""
+        
+        # Standard Train/Val
+        dm = DataModule(
+            train=DataSplit(
+                x=np.load(self.processed_dir / "train_x.npy"),
+                y=np.load(self.processed_dir / "train_y.npy")
+            ),
+            val=DataSplit(
+                x=np.load(self.processed_dir / "val_x.npy"),
+                y=np.load(self.processed_dir / "val_y.npy")
+            )
+        )
+
+        # Check if optional Test split exists on disk
+        test_x_path = self.processed_dir / "test_x.npy"
+        if test_x_path.exists():
+            dm.test = DataSplit(
+                x=np.load(test_x_path),
+                y=np.load(self.processed_dir / "test_y.npy")
+            )
+        
+        return dm
+
     def download_file(self, url: str, destination: Path) -> None:
-        """
-        Downloads a file from a URL to a specific path.
-        Args:
-            url (str): the file link.
-            destination (Path): the destination to save the file
-        """
+        """Utility to download raw files."""
         if destination.exists():
-            logger.info(f"File is already exist: {destination}. Skipping download")
+            logger.info(f"File exists: {destination}. Skipping.")
             return
         
         try:
-            logger.info(f"Downloading :-> {url} ...")
-            response = requests.get(url, stream=True, timeout=5)
-            response.raise_for_status() #check for http errors
+            logger.info(f"Downloading: {url}")
+            with requests.get(url, stream=True, timeout=10) as r:
+                r.raise_for_status()
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                with open(destination, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+        except Exception as e:
+            logger.error(f"Download failed: {e}")
+            raise
+    def _prepare_splits(self, x: np.ndarray, y: np.ndarray) -> DataModule:
+        """
+        Logic to split data into Train, Val, and optionally Test based on config.
+        Expected config structure:
+        split:
+            train: 0.8
+            val: 0.1
+            test: 0.1
+            stratify: true
+        """
+        s_cfg = self.ds_cfg.get("split", {})
+        train_r = s_cfg.get("train", 0.8)
+        val_r = s_cfg.get("val", 0.2)
+        test_r = s_cfg.get("test", 0.0)
+        should_stratify = s_cfg.get("stratify", False)
+        
+        # 1. Split off the Test set first (if exists)
+        if test_r > 0:
+            # The test_size for the first split is just the test_r
+            x_tv, x_test, y_tv, y_test = train_test_split(
+                x, y, 
+                test_size=test_r, 
+                stratify=y if should_stratify else None
+            )
+            # 2. Split remaining (Train+Val) into Train and Val
+            # We need to adjust the val ratio relative to the remaining data
+            relative_val_size = val_r / (train_r + val_r)
+            x_train, x_val, y_train, y_val = train_test_split(
+                x_tv, y_tv, 
+                test_size=relative_val_size, 
+                stratify=y_tv if should_stratify else None
+            )
+            
+            return DataModule(
+                train=DataSplit(x_train, y_train),
+                val=DataSplit(x_val, y_val),
+                test=DataSplit(x_test, y_test)
+            )
+        
+        else:
+            # Only 2 splits: Train and Val
+            x_train, x_val, y_train, y_val = train_test_split(
+                x, y, 
+                test_size=val_r, 
+                stratify=y if should_stratify else None
+            )
+            return DataModule(
+                train=DataSplit(x_train, y_train),
+                val=DataSplit(x_val, y_val)
+            )
 
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            with open(destination, "wb") as download:
-                for chunk in response.iter_content(chunk_size=8192):
-                    download.write(chunk)
-            logger.info(f"Successfully downloaded file to: {destination}")
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to download {url}: {e}")
-            raise # Re-rise to stop the pipeline if the data is missing
-
+# --- Concrete Implementations ---
 @register_dataset("mnist")
 class MNISTLoader(BaseLoader):
-    """MNIST loader class for loading and transforming the data"""
-    def load(self):
-        if self.is_processed():
-            self.datasets_paths = [
-            self.processed_dir / p for p in ["train_x.npy","train_y.npy", "test_x.npy","test_y.npy"]
-            ]
-            logger.info(f"Dataset already downloaded and processed at :{self.processed_dir}")
-            return
-        # Define the paths for download :
-        raw_img_path_train = Path(self.ds_cfg.paths.raw_dir) / self.ds_cfg.urls.train_images.split("/")[-1].split(".")[0]
-        raw_labels_path_train = Path(self.ds_cfg.paths.raw_dir) / self.ds_cfg.urls.train_labels.split("/")[-1].split(".")[0]
-        raw_img_path_test = Path(self.ds_cfg.paths.raw_dir) / self.ds_cfg.urls.test_images.split("/")[-1].split(".")[0]
-        raw_labels_path_test = Path(self.ds_cfg.paths.raw_dir) / self.ds_cfg.urls.test_labels.split("/")[-1].split(".")[0]
-
-        # 1. Download raw files using BaseLoader method:
+    def process(self) -> DataModule:
+        # 1. Define Raw Paths
+        raw_dir = Path(self.ds_cfg.paths.raw_dir)
+        paths = {
+            "tr_x": raw_dir / "train-images", "tr_y": raw_dir / "train-labels",
+            "ts_x": raw_dir / "t10k-images",  "ts_y": raw_dir / "t10k-labels",
+        }
         
-        self.download_file(self.ds_cfg.urls.train_images, raw_img_path_train)
-        self.download_file(self.ds_cfg.urls.train_labels, raw_labels_path_train)
-        self.download_file(self.ds_cfg.urls.test_images, raw_img_path_test)
-        self.download_file(self.ds_cfg.urls.test_labels, raw_labels_path_test)
+        # 2. Download
+        self.download_file(self.ds_cfg.urls.train_images, paths["tr_x"])
+        self.download_file(self.ds_cfg.urls.train_labels, paths["tr_y"])
+        self.download_file(self.ds_cfg.urls.test_images, paths["ts_x"])
+        self.download_file(self.ds_cfg.urls.test_labels, paths["ts_y"])
 
-        # 2. Transform the data:
-        with open(raw_img_path_train, "rb") as transform:
-            train_x = transform_images(transform.read())
+        # 3. Transform Raw Bytes
+        full_train_x = transform_images(paths["tr_x"].read_bytes())
+        full_train_y = transform_labels(paths["tr_y"].read_bytes())
+        
+        # 4. Use internal splitter to create Train/Val from the official training set
+        # This respects your 'split' configuration in the YAML
+        dm = self._prepare_splits(full_train_x, full_train_y)
 
-        with open(raw_labels_path_train, "rb") as transform:
-            train_y = transform_labels(transform.read())
-
-        with open(raw_img_path_test, "rb") as transform:
-            test_x = transform_images(transform.read())
-
-        with open(raw_labels_path_test, "rb") as transform:
-            test_y = transform_labels(transform.read())
-
-        # 3. Save the processed data
-        self.processed_dir.mkdir(parents=True, exist_ok=True)
-        np.save(self.processed_dir / "train_x.npy", train_x)
-        np.save(self.processed_dir / "train_y.npy", train_y)
-        np.save(self.processed_dir / "test_x.npy", test_x)
-        np.save(self.processed_dir / "test_y.npy", test_y)
-        self.datasets_paths = [
-            self.processed_dir / p for p in ["train_x.npy","train_y.npy", "test_x.npy","test_y.npy"]
-        ]
-        # 4. Create the maker file
-        self.marker_path.touch()
-        logger.info(f"Ingestion complete, Marker created at {self.marker_path}")
+        # 5. Attach the official MNIST Test set to the .test attribute
+        dm.test = DataSplit(
+            x=transform_images(paths["ts_x"].read_bytes()),
+            y=transform_labels(paths["ts_y"].read_bytes())
+        )
+        
+        return dm
+    
 
 @register_dataset("cancer")
-class BREAST_CANCER_LOADER(BaseLoader):
-    """brease cancer loader class"""
-    def load(self):
-        if self.is_processed():
-            self.datasets_paths = [
-            self.processed_dir / p for p in ["train_x.npy","train_y.npy", "test_x.npy","test_y.npy"]
-            ]
-            logger.info(f"Dataset already downloaded and processed at :{self.processed_dir}")
-            return
-        logger.info("Loading breast cancer dataset")
+class BreastCancerLoader(BaseLoader):
+    def process(self) -> DataModule:
         X, y = load_breast_cancer(return_X_y=True)
-        X,y = np.array(X),np.array(y)
-        x_train, x_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.1,stratify=y
-        )
-        self.processed_dir.mkdir(parents=True, exist_ok=True)
-        np.save(self.processed_dir / "train_x.npy",x_train)
-        np.save(self.processed_dir / "train_y.npy",y_train)
-        np.save(self.processed_dir / "test_x.npy",x_test)
-        np.save(self.processed_dir / "test_y.npy",y_test)
-        self.datasets_paths = [
-            self.processed_dir / p for p in ["train_x.npy","train_y.npy", "test_x.npy","test_y.npy"]
-        ]
-        self.marker_path.touch()
-        logger.info(f"Ingestion complete, Marker created at {self.marker_path}")
+        X = np.array(X)
+        y = np.array(y).reshape(-1,1)
+        
+        return self._prepare_splits(X,y)
 
 @register_dataset("turbines")
-class TURBINES_LOADER(BaseLoader):
-    """brease cancer loader class"""
-    def load(self):
-
-        if self.is_processed():
-            self.datasets_paths = [
-            self.processed_dir / p for p in ["train_x.npy","train_y.npy", "test_x.npy","test_y.npy"]
-            ]
-            logger.info(f"Dataset already downloaded and processed at :{self.processed_dir}")
-            return
-        # Set the path to the file you'd like to load
-        file_path = "Data.csv"
-
-        # Load the latest version
+class TurbinesLoader(BaseLoader):
+    def process(self) -> DataModule:
         df = kagglehub.dataset_load(
             KaggleDatasetAdapter.PANDAS,
             "ishank2005/wind-turbines-data-csv",
-            file_path,
-            # Provide any additional arguments like 
-            # sql_query or pandas_kwargs. See the 
-            # documenation for more information:
-            # https://github.com/Kaggle/kagglehub/blob/main/README.md#kaggledatasetadapterpandas
+            "Data.csv",
         )
+        X, y = df.drop(columns="PE").values, df["PE"].values.reshape(-1, 1)
+        return self._prepare_splits(X,y)
 
-        X, y = df.drop(columns="PE").values, df["PE"].values
-        x_train, x_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.1,stratify=y
-        )
-        self.processed_dir.mkdir(parents=True, exist_ok=True)
-        np.save(self.processed_dir / "train_x.npy",x_train)
-        np.save(self.processed_dir / "train_y.npy",y_train)
-        np.save(self.processed_dir / "test_x.npy",x_test)
-        np.save(self.processed_dir / "test_y.npy",y_test)
-        self.datasets_paths = [
-            self.processed_dir / p for p in ["train_x.npy","train_y.npy", "test_x.npy","test_y.npy"]
-        ]
-        self.marker_path.touch()
-        logger.info(f"Ingestion complete, Marker created at {self.marker_path}")
-
-@register_dataset("path")
-class PATH_DATASET(BaseLoader):
-    def load(self):
-        if not self.ds_cfg.paths.exist():
-            logger.warning(f"No data set in {self.ds_cfg.paths}")
-            raise
-        self.datasets_paths = [self.ds_cfg.paths]
-
-
-import numpy as np
-import gzip
+# --- Pure Functional Helpers ---
 
 def transform_images(raw_bytes: bytes) -> np.ndarray:
-    """
-    Convert ras MNIST image bytes into a normalized NumPy array.
-    Args:
-        raw_btes (bytes): the original raw bytes to be transformed
-    returns (np.ndarray): transformed images
-    """
-    # 0. decompress the file:
-    decompressed_bytes = gzip.decompress(raw_bytes)
-    # 1. Read the bytes into numpy array, skip the first 16 bytes header
-    data:np.ndarray = np.frombuffer(decompressed_bytes, dtype=np.uint8, offset=16)
-
-    # 2. Calculate the total number of images
-    num_images: int = len(data) // (28 * 28)
-
-    # 3. Reshape and Normalize
-    images:np.ndarray = data.reshape(num_images, 28* 28)
-    return images / 255.0
+    decompressed = gzip.decompress(raw_bytes)
+    data = np.frombuffer(decompressed, dtype=np.uint8, offset=16)
+    return data.reshape(-1, 28 * 28).astype(np.float32) / 255.0
 
 def transform_labels(raw_bytes: bytes) -> np.ndarray:
-    """
-    Convert ras MNIST labels bytes into a one hot encoded NumPy array.
-    Args:
-        raw_btes (bytes): the original raw bytes to be transformed
-    returns (np.ndarray): transformed images
-    """
-    # 0. decompress the file:
-    decompressed_bytes = gzip.decompress(raw_bytes)
-    # 1. Read the bytes into numpy array, skip the first 16 bytes header
-    data:np.ndarray = np.frombuffer(decompressed_bytes, dtype=np.uint8, offset=8)
+    decompressed = gzip.decompress(raw_bytes)
+    data = np.frombuffer(decompressed, dtype=np.uint8, offset=8)
+    return one_hot_numpy(data, 10)
 
-    # 2. convert the labels into one hot encoded
-    labels: np.ndarray = one_hot_numpy(data, 10)
-
-    return labels
-
-def one_hot_numpy(a: np.ndarray, num_classes: int) -> np.ndarray:
-    """Helper function to convert numpy array into one hotted array"""
-    return np.squeeze(np.eye(num_classes)[a.reshape(-1)])
+def one_hot_numpy(labels: np.ndarray, num_classes: int) -> np.ndarray:
+    return np.eye(num_classes)[labels.reshape(-1)]

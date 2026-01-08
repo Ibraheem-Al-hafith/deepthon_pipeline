@@ -39,8 +39,10 @@ def map_batchnorm(token):
     return [BatchNorm(num_features=num_features)]
 
 # ------ Dispatcher ----------
-def map_block(token):
+def map_block(token, input_dim:int|None=None):
     """route token to correct mapper"""
+    if token[0] is None:
+        return BLOCK_MAPPER["layer"]([input_dim] + token[1:])
     if isinstance(token[0], str):
         key = token[0].lower()
         if key not in BLOCK_MAPPER:
@@ -51,23 +53,23 @@ def map_block(token):
 
 # -------- build sequential model --------
 
-def build_sequential_from_arch(arch):
+def build_sequential_from_arch(arch, input_dim:int|None=None):
     layers = []
     for block in arch:
-        layers.extend(map_block(block))
+        layers.extend(map_block(block, input_dim=input_dim))
     return Sequential(layers)
 
 # ---------- Public Model Builder ----------
 
 @register_model("sequential")
-def build_model_from_config(cfg):
+def build_model_from_config(cfg, input_dim: int|None = None):
     """
     Expected YAML:
 
     model:
       name: sequential
       architecture:
-        - [30, 64, "relu"]
+        - [input_dim, 64, "relu"]
         - ["batchnorm"]
         - [64, 32, "relu"]
         - ["dropout", 0.5]
@@ -75,6 +77,6 @@ def build_model_from_config(cfg):
     """
 
     arch = cfg["model"]["architecture"]
-    return build_sequential_from_arch(arch)
+    return build_sequential_from_arch(arch, input_dim=input_dim)
 
         

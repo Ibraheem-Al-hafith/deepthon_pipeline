@@ -1,27 +1,21 @@
-from .base import *
+# data/loader.py
 from .registry import DATASET_REGISTRY
-import numpy as np
-def build_dataset(cfg):
+from .base import DataModule
+
+def build_dataset(cfg) -> DataModule:
     """
-    Factory entrypoint called by the pipeline.
+    Factory entrypoint. Now returns a structured DataModule object.
     """
-    name = cfg.name
+    name = cfg.name.lower()
 
     if name not in DATASET_REGISTRY:
         raise ValueError(
             f"Dataset '{name}' is not registered. "
             f"Available: {list(DATASET_REGISTRY.keys())}"
         )
+
+    # 1. Instantiate the specific loader (e.g., MNISTLoader)
     loader = DATASET_REGISTRY[name](cfg)
-    loader.load()
-    paths = loader.datasets_paths
-    return {
-        path.name:load_np_from_disk(path) for path in paths
-    }
-
-def load_np_from_disk(path: str):
-    if not path:
-        return
-    return np.load(path)
-
-
+    
+    # 2. get_data() handles: Cache Check -> (Download/Process/Save) -> Load
+    return loader.get_data()
