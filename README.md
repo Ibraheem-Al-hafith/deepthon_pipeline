@@ -28,15 +28,9 @@
 
 ## 🛠️ Installation
 
-### 1. Install Core Library (`deepthon`)
-First, install the engine that powers the models:
-```bash
-git clone [https://github.com/Ibraheem-Al-hafith/deepthon.git](https://github.com/Ibraheem-Al-hafith/deepthon.git)
-pip install -e deepthon
+### 📍 we must setup the two dependencies 📍
 
-```
-
-### 2. Setup Pipeline (`deepthon_pipeline`)
+### 1. Setup Pipeline (`deepthon_pipeline`)
 
 #### 🪟 Windows (Using `uv`)
 
@@ -44,10 +38,13 @@ Open PowerShell and run:
 
 ```powershell
 # Install uv
-powershell -c "irmo [https://astral.sh/uv/install.ps1](https://astral.sh/uv/install.ps1) | iex"
+powershell -c "irmo https://astral.sh/uv/install.ps1 | iex"
+
+#if the previous command fails:
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 # Setup project
-git clone [https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git](https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git)
+git clone https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git
 cd deepthon_pipeline
 uv venv
 .venv\Scripts\activate
@@ -61,10 +58,10 @@ Open your terminal and run:
 
 ```bash
 # Install uv
-curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Setup project
-git clone [https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git](https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git)
+git clone https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git
 cd deepthon_pipeline
 uv venv
 source .venv/bin/activate
@@ -72,6 +69,13 @@ uv pip install -e .
 
 ```
 
+### 2. Install Core Library (`deepthon`)
+then, install the engine that powers the models:
+```bash
+git clone https://github.com/Ibraheem-Al-hafith/deepthon.git
+pip install -e deepthon
+
+```
 ---
 
 ## 🖥️ GUI Usage
