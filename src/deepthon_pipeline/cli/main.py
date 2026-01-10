@@ -1,33 +1,46 @@
+from pathlib import Path
 import argparse
-from .commands import cmd_train, cmd_test
+from .commands import cmd_train, cmd_test_all
+from ..utils.logging import get_logger
+from ..training.runner import ExperimentRunner
+from ..config.loader import load_config
 
+logger = get_logger(__name__)
+# main.py
 
 def main():
     parser = argparse.ArgumentParser(description="Deepthon Pipeline CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Train Command
-    # 1. training from scratch:
-    train_parser = subparsers.add_parser("train", help="Run the training pipeline")
-    train_parser.add_argument("--config", required=True, help="Path to config.yaml")
-    # 2. resume from checkpoint:
-    train_parser.add_argument("--resume", action="store_true", help="Resume from last checkpoint ine experiment directory")
+    train_p = subparsers.add_parser("train", help="Run training")
+    train_p.add_argument("--config", required=True)
+    train_p.add_argument("--dataset", default="all",nargs="+", help="Dataset name or 'all'")
+    train_p.add_argument("--model", default="all",nargs="+", help="Model size or 'all'")
+    train_p.add_argument("--resume", action="store_true")
 
+    # Test Single
+    test_p = subparsers.add_parser("test", help="Test specific checkpoint")
+    test_p.add_argument("--config", required=True)
+    test_p.add_argument("--dataset", required=True)
+    test_p.add_argument("--model", required=True)
+    test_p.add_argument("--ckpt", required=True)
 
-    # Test Command
-    test_parser = subparsers.add_parser("test", help="Run evaluation on a saved checkpoint")
-    test_parser.add_argument("--config", required=True, help="Path to config.yaml")
-    test_parser.add_argument("--ckpt", required=True, help="Path to the saved checkpoint")
+    # Test All
+    subparsers.add_parser("test-all", help="Test all models in experiment").add_argument("--config", required=True)
 
     args = parser.parse_args()
 
-    # Route to the correct function
     if args.command == "train":
-        cmd_train(args.config, resume=args.resume)
+        cmd_train(args.config, args.dataset, args.model, resume=args.resume)
     elif args.command == "test":
-        cmd_test(args.config, args.ckpt)
-    else:
-        parser.print_help()
-
+        # Pass required name/size to build the right architecture for testing
+        runner = ExperimentRunner(load_config(args.config), args.dataset, args.model)
+        runner.build_data()
+        runner.build_model()
+        runner.build_trainer()
+        runner.test(checkpoint_path=Path(args.ckpt))
+    elif args.command == "test-all":
+        cmd_test_all(args.config)
 if __name__ == "__main__":
     main()
