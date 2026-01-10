@@ -1,12 +1,11 @@
 from pathlib import Path
 import argparse
 from .commands import cmd_train, cmd_test_all
-from ..utils.logging import get_logger
+from ..utils.logging import get_logger, logger_from_config
 from ..training.runner import ExperimentRunner
 from ..config.loader import load_config
 
-logger = get_logger(__name__)
-# main.py
+# logger = get_logger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(description="Deepthon Pipeline CLI")
@@ -30,6 +29,8 @@ def main():
     subparsers.add_parser("test-all", help="Test all models in experiment").add_argument("--config", required=True)
 
     args = parser.parse_args()
+    logger = logger_from_config(args.config)
+    logger.info("Starting Experiment")
 
     if args.command == "train":
         cmd_train(args.config, args.dataset, args.model, resume=args.resume)

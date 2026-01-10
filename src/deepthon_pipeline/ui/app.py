@@ -1,10 +1,8 @@
 import gradio as gr
-import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
 from ..config.loader import load_config
 from ..training.runner import ExperimentRunner
-from ..cli.commands import cmd_train, cmd_test_all
+from ..cli.commands import cmd_train
 
 def get_config_info(config_path):
     """Helper to extract dataset and model keys for the UI."""
@@ -48,6 +46,30 @@ def run_test_single_gui(config_path, dataset, model, ckpt_path):
     viz_path = runner.exp_dir / "test_visualization.png"
     return f"Test Score: {results}", viz_path
 
+def load_all_plots(config_path):
+    """
+    Scan the experiment directorty and return a list of image paths
+    for gradio gallery
+    """
+    try:
+        cfg = load_config(config_path)
+        exp_root = Path("runs") / cfg.get("experiment", "run")
+
+        if not exp_root.exists():
+            return [], "Experiment directory not found yet"
+        gallery_items = []
+        for subfolder in exp_root.iterdir():
+            if not subfolder.is_dir():continue
+            loss_p = subfolder / "loss_plot.png"
+            viz_p = subfolder / "test_visualization.png"
+
+            if loss_p.exists():
+                gallery_items.append((str(loss_p), f"{subfolder.name} - Loss"))
+            if viz_p.exists():
+                gallery_items.append((str(viz_p), f"{subfolder.name} - Results"))
+        return gallery_items, f"Found {len(gallery_items)} plots."
+    except Exception as e:
+        return [], f"Error loading plots: {str(e)}"
 # --- UI Layout ---
 with gr.Blocks(title="Deepthon Pipeline Dashboard") as demo:
     gr.Markdown("# 🧠 Deepthon Pipeline GUI")
@@ -78,14 +100,30 @@ with gr.Blocks(title="Deepthon Pipeline Dashboard") as demo:
             with gr.Row():
                 test_metrics = gr.Label(label="Metrics")
                 test_plot = gr.Image(label="Visualization (CM or Scatter)")
+        with gr.TabItem("🚩 Plots"):
+            plot_status = gr.Markdown("Click 'Load' to scan for plots")
+            result_gallery = gr.Gallery(
+                label="Experient Results",
+                show_label=False,
+                elem_id="gallery",
+                columns=2,
+                rows=2,
+                object_fit="contain",
+                height="auto"
+                )
 
     # Interactivity
     load_btn.click(get_config_info, inputs=config_input, outputs=[ds_select, md_select])
     load_btn.click(get_config_info, inputs=config_input, outputs=[test_ds, test_md])
+    load_btn.click(load_all_plots, inputs=config_input, outputs=[result_gallery, plot_status])
     
     train_btn.click(run_train_gui, 
                     inputs=[config_input, ds_select, md_select, resume_toggle], 
-                    outputs=train_output)
+                    outputs=train_output).then(
+                        load_all_plots,
+                        inputs=config_input,
+                        outputs=[result_gallery, plot_status]
+                    )
     
     test_btn.click(run_test_single_gui, 
                     inputs=[config_input, test_ds, test_md, ckpt_input], 

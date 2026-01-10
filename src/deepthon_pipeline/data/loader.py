@@ -1,4 +1,3 @@
-# data/loader.py
 from .registry import DATASET_REGISTRY
 from .base import DataModule
 

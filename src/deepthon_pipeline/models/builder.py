@@ -1,4 +1,4 @@
-from deepthon.nn.layers import Sequential, Layer, Dropout, BatchNorm, get_activation
+from deepthon.nn.layers import Sequential, Layer, Dropout, BatchNorm
 from .registry import register_model
 
 # ---------------- Block mapper registery -----------------

@@ -1,5 +1,3 @@
-# deepthon_pipeline/src/deepthon_pipeline/models/registry.py
-
 MODEL_REGISTRY = {}
 
 

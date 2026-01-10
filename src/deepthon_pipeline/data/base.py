@@ -3,7 +3,7 @@ import gzip
 import requests
 import kagglehub
 from pathlib import Path
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from typing import Optional, List, Tuple
 from kagglehub import KaggleDatasetAdapter
@@ -49,6 +49,7 @@ class BaseLoader(ABC):
             logger.info(f"Processing raw data for {self.__class__.__name__}...")
             data_module = self.process()
             # Save all 3 potential splits
+            assert isinstance(data_module, DataModule)
             self._save_to_disk(data_module)
             self.marker_path.touch()
             return data_module
@@ -94,6 +95,8 @@ class BaseLoader(ABC):
             )
         
         return dm
+    def process(self) -> DataModule|None:
+        pass
 
     def download_file(self, url: str, destination: Path) -> None:
         """Utility to download raw files."""
