@@ -1,6 +1,6 @@
 from pathlib import Path
 import argparse
-from .commands import cmd_train, cmd_test_all
+from .commands import cmd_train, cmd_test_all, cmd_test
 from ..utils.logging import get_logger, logger_from_config
 from ..training.runner import ExperimentRunner
 from ..config.loader import load_config
@@ -36,12 +36,10 @@ def main():
         cmd_train(args.config, args.dataset, args.model, resume=args.resume)
     elif args.command == "test":
         # Pass required name/size to build the right architecture for testing
-        runner = ExperimentRunner(load_config(args.config), args.dataset, args.model)
-        runner.build_data()
-        runner.build_model()
-        runner.build_trainer()
-        runner.test(checkpoint_path=Path(args.ckpt))
+        cmd_test(args.config, args.ckpt, args.dataset, args.model)
     elif args.command == "test-all":
         cmd_test_all(args.config)
+
+
 if __name__ == "__main__":
     main()

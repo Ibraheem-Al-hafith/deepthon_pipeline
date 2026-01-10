@@ -17,9 +17,9 @@ datasets:
       loss_fn: CCE
       metric: f1
     split:
-      train: 0.9
-      val: 0.1
-      test: 0
+      train: 0.6
+      val: 0.2
+      test: 0.2
   cancer:
     name: cancer
     input_dim: 30
@@ -28,9 +28,9 @@ datasets:
       processed_dir: "data/processed/cancer"
       marker_file: "cancer_ready.success"     
     split:
-      train: 0.8
-      val: 0.1
-      test: 0.1 
+      train: 0.7
+      val: 0.15
+      test: 0.15 
     train_config:
       loss_fn: BCE
       metric: f1
