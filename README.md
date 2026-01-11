@@ -102,11 +102,7 @@ python -m src.deepthon_pipeline.ui.app serve
 
 ### 📺 Demo Video
 
-<div align="center">
-<video src="assets/demo.mp4" width="700" controls>
-Your browser does not support the video tag.
-</video>
-</div>
+https://github.com/user-attachments/assets/af522cce-8b8b-4930-a97f-543463dc6631
 
 ---
 
