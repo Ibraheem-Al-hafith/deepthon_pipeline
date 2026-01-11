@@ -39,11 +39,13 @@ Open PowerShell and run:
 **Install uv**
 ```powershell
 powershell -c "irmo https://astral.sh/uv/install.ps1 | iex"
+
 ```
 
 **if the previous command fails:**
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
 ```
 
 **Setup project**
@@ -53,6 +55,7 @@ cd deepthon_pipeline
 uv venv
 .venv\Scripts\activate
 uv pip install -e .
+
 ```
 
 #### 🍎 Mac / 🐧 Linux (Using `uv`)
@@ -63,6 +66,7 @@ Open your terminal and run:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
 ```
 
 **Setup project**
@@ -73,6 +77,7 @@ cd deepthon_pipeline
 uv venv
 source .venv/bin/activate
 uv pip install -e .
+
 ```
 
 ### 2. Install Core Library (`deepthon`)
