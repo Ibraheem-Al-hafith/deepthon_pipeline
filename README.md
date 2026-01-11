@@ -79,7 +79,7 @@ uv pip install -e .
 then, install the engine that powers the models:
 ```bash
 git clone https://github.com/Ibraheem-Al-hafith/deepthon.git
-pip install -e deepthon
+uv pip install -e deepthon
 
 ```
 ---
