@@ -36,37 +36,43 @@
 
 Open PowerShell and run:
 
+**Install uv**
 ```powershell
-# Install uv
 powershell -c "irmo https://astral.sh/uv/install.ps1 | iex"
+```
 
-#if the previous command fails:
+**if the previous command fails:**
+```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-# Setup project
+**Setup project**
+```powershell
 git clone https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git
 cd deepthon_pipeline
 uv venv
 .venv\Scripts\activate
 uv pip install -e .
-
 ```
 
 #### 🍎 Mac / 🐧 Linux (Using `uv`)
 
 Open your terminal and run:
 
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+**Install uv**
 
-# Setup project
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Setup project**
+
+```
 git clone https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git
 cd deepthon_pipeline
 uv venv
 source .venv/bin/activate
 uv pip install -e .
-
 ```
 
 ### 2. Install Core Library (`deepthon`)
@@ -112,16 +118,22 @@ python -m src.deepthon_pipeline.cli.main <command> [args] [options]
 
 Train models based on your YAML config.
 
+Run all datasets and models in config
+
 ```bash
-# Run all datasets and models in config
 python -m src.deepthon_pipeline.cli.main train configs/config.yaml
+```
 
-# Run specific dataset (uses default 'all' for models)
+Run specific dataset (uses default 'all' for models)
+
+```bash
 python -m src.deepthon_pipeline.cli.main train configs/config.yaml cancer
+```
 
-# Run specific dataset and specific model size
+Run specific dataset and specific model size
+
+```bash
 python -m src.deepthon_pipeline.cli.main train configs/config.yaml cancer --model tiny
-
 ```
 
 ### 🔹 `test-all` (*recommended even when run a single training loop*)
