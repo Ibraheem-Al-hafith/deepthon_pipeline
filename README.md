@@ -102,7 +102,8 @@ python -m src.deepthon_pipeline.ui.app serve
 
 ### 📺 Demo Video
 
-https://github.com/user-attachments/assets/af522cce-8b8b-4930-a97f-543463dc6631
+https://github.com/user-attachments/assets/bc7e224f-9b6c-44ff-a518-4f549596f38d
+
 
 ---
 
