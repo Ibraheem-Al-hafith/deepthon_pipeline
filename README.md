@@ -52,9 +52,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```powershell
 git clone https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git
 cd deepthon_pipeline
-uv venv
-.venv\Scripts\activate
-uv pip install -e .
+uv sync
 
 ```
 
