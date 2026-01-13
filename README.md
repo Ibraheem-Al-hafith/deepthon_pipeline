@@ -74,19 +74,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 git clone https://github.com/Ibraheem-Al-hafith/deepthon_pipeline.git
 cd deepthon_pipeline
-uv venv
-source .venv/bin/activate
-uv pip install -e .
+uv sync
 
 ```
 
-### 2. Install Core Library (`deepthon`)
-then, install the engine that powers the models:
-```bash
-git clone https://github.com/Ibraheem-Al-hafith/deepthon.git
-uv pip install -e deepthon
-
-```
 ---
 
 ## 🖥️ GUI Usage
