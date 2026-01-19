@@ -91,7 +91,7 @@ python -m src.deepthon_pipeline.ui.app serve
 
 ### 📺 Demo Video
 
-https://github.com/user-attachments/assets/6137c899-1549-47e8-beac-c833b74392d4
+https://github.com/user-attachments/assets/15a38e7f-164f-45eb-87b3-79a3311b8362
 
 ---
 
